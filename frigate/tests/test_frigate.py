@@ -58,11 +58,11 @@ def test_load_chart(simple_chart):
     assert any(["image" in value[0] for value in values])
 
 
-def test_get_comment(yaml):
-    from frigate.gen import get_comment
+def test_get_inline_comment(yaml):
+    from frigate.gen import get_inline_comment
 
     tree = yaml.load("hello: world  # this is the comment")
-    assert get_comment(tree, "hello") == "this is the comment"
+    assert get_inline_comment(tree, "hello") == "this is the comment"
 
     tree = yaml.load(
         """
@@ -71,7 +71,7 @@ def test_get_comment(yaml):
     # this is also not the comment
     """
     )
-    assert get_comment(tree, "hello") == "this is the comment"
+    assert get_inline_comment(tree, "hello") == "this is the comment"
 
     tree = yaml.load(
         """
@@ -82,7 +82,7 @@ def test_get_comment(yaml):
     # this is also not the comment
     """
     )
-    assert get_comment(tree, "hello") == "this is the comment"
+    assert get_inline_comment(tree, "hello") == "this is the comment"
 
     tree = yaml.load(
         """
@@ -94,7 +94,7 @@ def test_get_comment(yaml):
     # this is also not the comment
     """
     )
-    assert get_comment(tree, "hello") == "this is the comment"
+    assert get_inline_comment(tree, "hello") == "this is the comment"
 
     tree = yaml.load(
         """
@@ -105,17 +105,17 @@ def test_get_comment(yaml):
     some: option
     """
     )
-    assert get_comment(tree, "hello") == ""
+    assert get_inline_comment(tree, "hello") == ""
 
     tree = yaml.load("hello: world  # Use a `LoadBalancer`.")
-    assert get_comment(tree, "hello") == "Use a `LoadBalancer`."
+    assert get_inline_comment(tree, "hello") == "Use a `LoadBalancer`."
 
 
 def test_get_pipe_string_comment(yaml):
-    from frigate.gen import get_comment
+    from frigate.gen import get_inline_comment
 
     tree = yaml.load("hello: | # pipe string.\n  world ")
-    assert get_comment(tree, "hello") == "pipe string."
+    assert get_inline_comment(tree, "hello") == "pipe string."
 
 
 def test_clean_comment():

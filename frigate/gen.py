@@ -14,7 +14,7 @@ from frigate.utils import flatten
 yaml = YAML()
 
 
-def load_chart(chartdir, root=None):
+def load_chart(chartdir, root=None, helm_docs=False):
     """Load the yaml information from a Helm chart directory.
 
     Load in the `Chart.yaml` and `values.yaml` files from a Helm
@@ -23,6 +23,7 @@ def load_chart(chartdir, root=None):
     Args:
         chartdir (str): Path to the Helm chart.
         root (list, optional): The root of the namespace we are currently at. Used for recursion.
+        helm_docs (bool): Use helm-docs style comments
 
     Returns:
         chart (dict): Contents of `Chart.yaml` loaded into a dict.
@@ -38,10 +39,20 @@ def load_chart(chartdir, root=None):
             lock = yaml.load(fh.read())
     except FileNotFoundError:
         lock = {}
-    return chart, lock, list(traverse(values, root=root))
+    return (
+        chart,
+        lock,
+        list(
+            traverse(
+                values,
+                root=root,
+                helm_docs=helm_docs,
+            )
+        ),
+    )
 
 
-def load_chart_with_dependencies(chartdir, root=None, recursive=False):
+def load_chart_with_dependencies(chartdir, root=None, recursive=False, helm_docs=False):
     """
     Load and return dictionaries representing Chart.yaml and values.yaml from
     the Helm chart. If Chart.yaml declares dependencies, recursively merge in
@@ -50,6 +61,8 @@ def load_chart_with_dependencies(chartdir, root=None, recursive=False):
     Args:
         chartdir (str): Path to the Helm chart.
         root (list, optional): The root of the namespace we are currently at. Used for recursion.
+        recursive (bool): Recursively load values from dependencies further from one level.
+        helm_docs (bool): Use helm-docs style comments.
 
     Returns:
         chart (dict): Contents of `Chart.yaml` loaded into a dict.
@@ -57,7 +70,7 @@ def load_chart_with_dependencies(chartdir, root=None, recursive=False):
     """
     if root is None:
         root = []
-    chart, lock, values = load_chart(chartdir, root=root)
+    chart, lock, values = load_chart(chartdir, root=root, helm_docs=helm_docs)
     if "dependencies" in (lock or chart):
         # update the helm chart's charts/ folder
         update_chart_dependencies(chartdir)
@@ -75,7 +88,7 @@ def load_chart_with_dependencies(chartdir, root=None, recursive=False):
                 dependency_dir = os.path.join(tmpdirname, dependency_name)
 
                 if not recursive:
-                    dependency_chart, _, dependency_values = load_chart(
+                    _, _, dependency_values = load_chart(
                         dependency_dir, root + [dependency_name]
                     )
                 else:
@@ -134,7 +147,7 @@ def update_chart_dependencies(chart_path):
     return None
 
 
-def get_comment(tree, key):
+def get_inline_comment(tree, key):
     """Extract the in-line comment from a ruamel.yaml.comments.Comment list.
 
     When ruamel.yaml parses a YAML file it also extracts a ruamel.yaml.comments.Comment
@@ -149,7 +162,7 @@ def get_comment(tree, key):
         >>> from ruamel.yaml import YAML
         >>> yaml = YAML()
         >>> tree = yaml.load("hello: world  # this is the comment")
-        >>> get_comment(tree, "hello")
+        >>> get_inline_comment(tree, "hello")
         "This is the comment"
 
     Args:
@@ -170,10 +183,29 @@ def get_comment(tree, key):
     return ""
 
 
+def get_helm_docs_comment(tree, key):
+    comments = tree.ca.items[key]
+    linecol = tree.lc.data[key]
+
+    flat_comments = list(filter(lambda comment: comment is not None, flatten(comments)))
+    if not any(comment.value.strip().startswith("# --") for comment in flat_comments):
+        return ""
+    key_comments = []
+    for comment in reversed(flat_comments):
+        # Skip inline comments
+        if comment.start_mark.line == linecol[0]:
+            continue
+        stripped_comment = clean_comment(comment.value.strip().split("\n")[0].strip())
+        key_comments.append(stripped_comment)
+        if comment.value.strip().startswith("# --"):
+            break
+    return ("\n").join(key_comments[::-1])
+
+
 def clean_comment(comment):
     """Remove comment formatting.
 
-    Strip a comment.
+    Strip a comment from plain comment formatting and helm-docs comment formatting.
 
     Examples:
         Strip down a comment
@@ -188,10 +220,10 @@ def clean_comment(comment):
         str: Cleaned sentence
 
     """
-    return comment.strip("# ")
+    return comment.strip("# -- ").strip("# ")
 
 
-def traverse(tree, root=None):
+def traverse(tree, root=None, helm_docs=False):
     """Iterate over a tree of configuration and extract all information.
 
     Iterate over nested configuration and extract parameters, comments and values.
@@ -223,7 +255,7 @@ def traverse(tree, root=None):
         default = tree[key]
         if isinstance(default, dict) and default != {}:
             newroot = root + [key]
-            for value in traverse(default, root=newroot):
+            for value in traverse(default, root=newroot, helm_docs=helm_docs):
                 yield value
         else:
             if isinstance(default, list):
@@ -235,12 +267,18 @@ def traverse(tree, root=None):
                 default = dict(default)
             comment = ""
             if key in tree.ca.items:
-                comment = get_comment(tree, key)
+                comment = (
+                    get_inline_comment(tree, key)
+                    if helm_docs is False
+                    else get_helm_docs_comment(tree, key)
+                )
             param = ".".join(root + [key])
             yield [param, comment, json.dumps(default)]
 
 
-def gen(chartdir, output_format, credits=True, deps=True, recursive=False):
+def gen(
+    chartdir, output_format, credits=True, deps=True, recursive=False, helm_docs=False
+):
     """Generate documentation for a Helm chart.
 
     Generate documentation for a Helm chart given the path to a chart and a
@@ -251,15 +289,17 @@ def gen(chartdir, output_format, credits=True, deps=True, recursive=False):
         output_format (str): Output format (maps to jinja templates in frigate)
         credits (bool): Show Frigate credits in documentation
         deps (bool): Read values from chart dependencies and include them in the config table
+        recursive (bool): Recursively read values from chart dependencies further than one level
+        helm_docs (bool): Use helm-docs style comments
 
     Returns:
         str: Rendered documentation for the Helm chart
 
     """
     chart, _, values = (
-        load_chart_with_dependencies(chartdir, recursive=recursive)
+        load_chart_with_dependencies(chartdir, recursive=recursive, helm_docs=helm_docs)
         if deps
-        else load_chart(chartdir)
+        else load_chart(chartdir, helm_docs=helm_docs)
     )
 
     templates = Environment(loader=FileSystemLoader([chartdir, TEMPLATES_PATH]))

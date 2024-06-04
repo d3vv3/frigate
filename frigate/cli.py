@@ -38,7 +38,20 @@ def cli():
     default=False,
     help="Go deeper than the first level of the chart dependencies",
 )
-def gen(filename, output_format, no_credits, no_deps, recursive):
+@click.option(
+    "--helm-docs",
+    is_flag=True,
+    default=False,
+    help="Use the helm-docs format for the documentation",
+)
+def gen(
+    filename,
+    output_format,
+    no_credits,
+    no_deps,
+    recursive,
+    helm_docs,
+):
     click.echo(
         frigate.gen.gen(
             filename,
@@ -46,6 +59,7 @@ def gen(filename, output_format, no_credits, no_deps, recursive):
             credits=no_credits,
             deps=no_deps,
             recursive=recursive,
+            helm_docs=helm_docs,
         )
     )
 
@@ -87,7 +101,18 @@ def gen(filename, output_format, no_credits, no_deps, recursive):
     default=False,
     help="Go deeper than the first level of the chart dependencies",
 )
-def hook(artifact, output_format, no_credits, no_deps, recursive):
+@click.option(
+    "--helm-docs",
+    is_flag=True,
+    default=False,
+    help="Use the helm-docs format for the documentation",
+)
+def hook(artifact, output_format, no_credits, no_deps, recursive, helm_docs):
     frigate.pre_commit_hook.main(
-        artifact, output_format, credits=no_credits, deps=no_deps, recursive=recursive
+        artifact,
+        output_format,
+        credits=no_credits,
+        deps=no_deps,
+        recursive=recursive,
+        helm_docs=helm_docs,
     )
