@@ -92,11 +92,11 @@ def load_chart_with_dependencies(chartdir, root=None, recursive=False, helm_docs
 
                 if not recursive:
                     _, _, dependency_values = load_chart(
-                        dependency_dir, root + [dependency_name]
+                        dependency_dir, root + [dependency_name], helm_docs=helm_docs
                     )
                 else:
                     _, _, dependency_values = load_chart_with_dependencies(
-                        dependency_dir, root + [dependency_name]
+                        dependency_dir, root + [dependency_name], helm_docs=helm_docs
                     )
                 values = squash_duplicate_values(values + dependency_values)
 
@@ -207,7 +207,7 @@ def get_helm_docs_comment(tree, lines, key):
             found_comment_beggining = True
         current_line -= 1
 
-    return ("\n").join(relevant_comments[::-1])
+    return (" ").join(relevant_comments[::-1])
 
 
 def clean_comment(comment):
@@ -274,7 +274,7 @@ def traverse(tree, lines, root=None, helm_docs=False):
             if isinstance(default, CommentedMap):
                 default = dict(default)
             comment = ""
-            if key in tree.ca.items:
+            if key in tree.ca.items or helm_docs:
                 comment = (
                     get_inline_comment(tree, key)
                     if helm_docs is False
