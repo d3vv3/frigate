@@ -32,6 +32,8 @@ def load_chart(chartdir, root=None, helm_docs=False):
     """
     with open(os.path.join(chartdir, "values.yaml"), "r") as fh:
         values = yaml.load(fh.read())
+    with open(os.path.join(chartdir, "values.yaml")) as f:
+        lines = f.read().splitlines()
     with open(os.path.join(chartdir, "Chart.yaml"), "r") as fh:
         chart = yaml.load(fh.read())
     try:
@@ -45,6 +47,7 @@ def load_chart(chartdir, root=None, helm_docs=False):
         list(
             traverse(
                 values,
+                lines,
                 root=root,
                 helm_docs=helm_docs,
             )
@@ -183,23 +186,28 @@ def get_inline_comment(tree, key):
     return ""
 
 
-def get_helm_docs_comment(tree, key):
-    comments = tree.ca.items[key]
+def get_helm_docs_comment(tree, lines, key):
+    # TODO: Write documentation and tests
     linecol = tree.lc.data[key]
 
-    flat_comments = list(filter(lambda comment: comment is not None, flatten(comments)))
-    if not any(comment.value.strip().startswith("# --") for comment in flat_comments):
+    # No comment above the key
+    if not lines[linecol[0] - 1].strip().startswith("#"):
         return ""
-    key_comments = []
-    for comment in reversed(flat_comments):
-        # Skip inline comments
-        if comment.start_mark.line == linecol[0]:
-            continue
-        stripped_comment = clean_comment(comment.value.strip().split("\n")[0].strip())
-        key_comments.append(stripped_comment)
-        if comment.value.strip().startswith("# --"):
+
+    relevant_comments = []
+    found_comment_beggining = False
+    current_line = linecol[0] - 1
+    while not found_comment_beggining:
+        if not lines[current_line].strip().startswith("#"):
             break
-    return ("\n").join(key_comments[::-1])
+        relevant_comments.append(
+            clean_comment(lines[current_line].strip().split("\n")[0].strip())
+        )
+        if lines[current_line].strip().startswith("# --"):
+            found_comment_beggining = True
+        current_line -= 1
+
+    return ("\n").join(relevant_comments[::-1])
 
 
 def clean_comment(comment):
@@ -223,7 +231,7 @@ def clean_comment(comment):
     return comment.strip("# -- ").strip("# ")
 
 
-def traverse(tree, root=None, helm_docs=False):
+def traverse(tree, lines, root=None, helm_docs=False):
     """Iterate over a tree of configuration and extract all information.
 
     Iterate over nested configuration and extract parameters, comments and values.
@@ -255,7 +263,7 @@ def traverse(tree, root=None, helm_docs=False):
         default = tree[key]
         if isinstance(default, dict) and default != {}:
             newroot = root + [key]
-            for value in traverse(default, root=newroot, helm_docs=helm_docs):
+            for value in traverse(default, lines, root=newroot, helm_docs=helm_docs):
                 yield value
         else:
             if isinstance(default, list):
@@ -270,7 +278,7 @@ def traverse(tree, root=None, helm_docs=False):
                 comment = (
                     get_inline_comment(tree, key)
                     if helm_docs is False
-                    else get_helm_docs_comment(tree, key)
+                    else get_helm_docs_comment(tree, lines, key)
                 )
             param = ".".join(root + [key])
             yield [param, comment, json.dumps(default)]
