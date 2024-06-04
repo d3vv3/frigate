@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0](https://git.knut.univention.de/univention/documentation/frigate/compare/v0.0.1...v0.1.0) (2024-06-04)
+
+
+### Features
+
+* move package name to univention-frigate to avoid collisions ([8d36676](https://git.knut.univention.de/univention/documentation/frigate/commit/8d36676085ebf0a69d5d401a1b2e9c249f6ec688))
+
 ## 0.0.1 (2024-06-04)
 
 
