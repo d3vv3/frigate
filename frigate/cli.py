@@ -1,4 +1,5 @@
 import click
+
 import frigate.gen
 import frigate.pre_commit_hook
 from frigate.utils import list_templates
@@ -20,21 +21,41 @@ def cli():
     type=click.Choice(list_templates()),
 )
 @click.option(
-    "--no-credits", is_flag=True, default=True, help="Disable the Frigate credits",
+    "--no-credits",
+    is_flag=True,
+    default=True,
+    help="Disable the Frigate credits",
 )
 @click.option(
-    "--no-deps", is_flag=True, default=True, help="Do not render dependency values",
+    "--no-deps",
+    is_flag=True,
+    default=True,
+    help="Do not render dependency values",
 )
-def gen(filename, output_format, no_credits, no_deps):
+@click.option(
+    "--recursive",
+    is_flag=True,
+    default=False,
+    help="Go deeper than the first level of the chart dependencies",
+)
+def gen(filename, output_format, no_credits, no_deps, recursive):
     click.echo(
-        frigate.gen.gen(filename, output_format, credits=no_credits, deps=no_deps)
+        frigate.gen.gen(
+            filename,
+            output_format,
+            credits=no_credits,
+            deps=no_deps,
+            recursive=recursive,
+        )
     )
 
 
-@cli.command(context_settings=dict(
-    ignore_unknown_options=True,
-    allow_extra_args=True,
-))
+@cli.command(
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    )
+)
 @click.option(
     "--artifact",
     default="README.md",
@@ -60,5 +81,13 @@ def gen(filename, output_format, no_credits, no_deps):
     default=True,
     help="Do not render dependency values",
 )
-def hook(artifact, output_format, no_credits, no_deps):
-    frigate.pre_commit_hook.main(artifact, output_format, credits=no_credits, deps=no_deps)
+@click.option(
+    "--recursive",
+    is_flag=True,
+    default=False,
+    help="Go deeper than the first level of the chart dependencies",
+)
+def hook(artifact, output_format, no_credits, no_deps, recursive):
+    frigate.pre_commit_hook.main(
+        artifact, output_format, credits=no_credits, deps=no_deps, recursive=recursive
+    )

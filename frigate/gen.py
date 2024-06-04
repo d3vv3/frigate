@@ -1,14 +1,14 @@
 import json
 import os.path
-import tempfile
 import shutil
 import subprocess
+import tempfile
 
 from jinja2 import Environment, FileSystemLoader
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 
-from frigate import TEMPLATES_PATH, DOTFILE_NAME
+from frigate import DOTFILE_NAME, TEMPLATES_PATH
 from frigate.utils import flatten
 
 yaml = YAML()
@@ -33,10 +33,15 @@ def load_chart(chartdir, root=None):
         values = yaml.load(fh.read())
     with open(os.path.join(chartdir, "Chart.yaml"), "r") as fh:
         chart = yaml.load(fh.read())
-    return chart, list(traverse(values, root=root))
+    try:
+        with open(os.path.join(chartdir, "Chart.lock"), "r") as fh:
+            lock = yaml.load(fh.read())
+    except FileNotFoundError:
+        lock = {}
+    return chart, lock, list(traverse(values, root=root))
 
 
-def load_chart_with_dependencies(chartdir, root=None):
+def load_chart_with_dependencies(chartdir, root=None, recursive=False):
     """
     Load and return dictionaries representing Chart.yaml and values.yaml from
     the Helm chart. If Chart.yaml declares dependencies, recursively merge in
@@ -52,27 +57,34 @@ def load_chart_with_dependencies(chartdir, root=None):
     """
     if root is None:
         root = []
-    chart, values = load_chart(chartdir, root=root)
-    if "dependencies" in chart:
+    chart, lock, values = load_chart(chartdir, root=root)
+    if "dependencies" in (lock or chart):
         # update the helm chart's charts/ folder
         update_chart_dependencies(chartdir)
 
         # recursively update values by unpacking the helm charts in the charts/ folder
-        for dependency in chart["dependencies"]:
+        for dependency in lock["dependencies"]:
             dependency_name = dependency["name"]
             dependency_path = os.path.join(
-                chartdir, "charts", f"{dependency_name}-{dependency['version']}.tgz",
+                chartdir,
+                "charts",
+                f"{dependency_name}-{dependency['version']}.tgz",
             )
             with tempfile.TemporaryDirectory() as tmpdirname:
                 shutil.unpack_archive(dependency_path, tmpdirname)
                 dependency_dir = os.path.join(tmpdirname, dependency_name)
 
-                _, dependency_values = load_chart_with_dependencies(
-                    dependency_dir, root + [dependency_name]
-                )
+                if not recursive:
+                    dependency_chart, _, dependency_values = load_chart(
+                        dependency_dir, root + [dependency_name]
+                    )
+                else:
+                    _, _, dependency_values = load_chart_with_dependencies(
+                        dependency_dir, root + [dependency_name]
+                    )
                 values = squash_duplicate_values(values + dependency_values)
 
-    return chart, values
+    return chart, lock, values
 
 
 def squash_duplicate_values(values):
@@ -228,7 +240,7 @@ def traverse(tree, root=None):
             yield [param, comment, json.dumps(default)]
 
 
-def gen(chartdir, output_format, credits=True, deps=True):
+def gen(chartdir, output_format, credits=True, deps=True, recursive=False):
     """Generate documentation for a Helm chart.
 
     Generate documentation for a Helm chart given the path to a chart and a
@@ -244,8 +256,10 @@ def gen(chartdir, output_format, credits=True, deps=True):
         str: Rendered documentation for the Helm chart
 
     """
-    chart, values = (
-        load_chart_with_dependencies(chartdir) if deps else load_chart(chartdir)
+    chart, _, values = (
+        load_chart_with_dependencies(chartdir, recursive=recursive)
+        if deps
+        else load_chart(chartdir)
     )
 
     templates = Environment(loader=FileSystemLoader([chartdir, TEMPLATES_PATH]))

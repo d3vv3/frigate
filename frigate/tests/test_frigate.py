@@ -52,7 +52,7 @@ def yaml():
 
 
 def test_load_chart(simple_chart):
-    chart, values = simple_chart
+    chart, lock, values = simple_chart
 
     assert "name" in chart and chart["name"] == "simple"
     assert any(["image" in value[0] for value in values])
