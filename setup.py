@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 
 import versioneer
 
-PACKAGE_NAME = "frigate"
+PACKAGE_NAME = "univention-frigate"
 HERE = os.path.abspath(os.path.dirname(__file__))
 README = open(os.path.join(HERE, "README.md"), encoding="utf8").read()
 
