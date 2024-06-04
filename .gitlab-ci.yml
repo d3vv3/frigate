@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2024 Univention GmbH
+
+---
+
+include:
+  - project: "univention/customers/dataport/upx/common-ci"
+    ref: "v1.31.1"
+    file:
+      - "defaults/stages.yaml"
+      - "defaults/nubus-workflow.yaml"
+      - "jobs/semantic-release-env.yaml"
+
+build_frigate:
+  stage: package
+  dependencies:
+    - pre-semantic-release
+  needs:
+    - pre-semantic-release
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+  image: docker-registry.knut.univention.de/python:3.12-slim
+  before_script:
+    - export BUILD_VERSION="$RELEASE_VERSION"
+  script:
+    - pip install build
+    - python -m build
+
+
+publish_frigate:
+  stage: publish
+  extends: build_frigate
+  dependencies:
+    - build_frigate
+    - pre-semantic-release
+  needs:
+    - build_frigate
+    - pre-semantic-release
+  script:
+    - pip install twine
+    - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*.whl
+
+...
