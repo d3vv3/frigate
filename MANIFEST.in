@@ -2,3 +2,4 @@ include versioneer.py
 include frigate/_version.py
 include frigate/templates/*.jinja2
 exclude frigate/tests
+include requirements.txt
