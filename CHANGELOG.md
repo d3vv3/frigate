@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://git.knut.univention.de/univention/documentation/frigate/compare/v0.1.0...v0.1.1) (2024-06-05)
+
+
+### Bug Fixes
+
+* pre-commit hook and --skip-helm-update flag ([05df661](https://git.knut.univention.de/univention/documentation/frigate/commit/05df66157a3d7513b2a16de20a2ffedb4ebf662f))
+
 ## [0.1.0](https://git.knut.univention.de/univention/documentation/frigate/compare/v0.0.1...v0.1.0) (2024-06-04)
 
 
