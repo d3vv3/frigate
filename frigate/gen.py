@@ -55,7 +55,9 @@ def load_chart(chartdir, root=None, helm_docs=False):
     )
 
 
-def load_chart_with_dependencies(chartdir, root=None, recursive=False, helm_docs=False):
+def load_chart_with_dependencies(
+    chartdir, root=None, recursive=False, helm_docs=False, skip_helm_update=False
+):
     """
     Load and return dictionaries representing Chart.yaml and values.yaml from
     the Helm chart. If Chart.yaml declares dependencies, recursively merge in
@@ -76,7 +78,8 @@ def load_chart_with_dependencies(chartdir, root=None, recursive=False, helm_docs
     chart, lock, values = load_chart(chartdir, root=root, helm_docs=helm_docs)
     if "dependencies" in (lock or chart):
         # update the helm chart's charts/ folder
-        update_chart_dependencies(chartdir)
+        if not skip_helm_update:
+            update_chart_dependencies(chartdir)
 
         # recursively update values by unpacking the helm charts in the charts/ folder
         for dependency in lock["dependencies"]:
@@ -96,7 +99,10 @@ def load_chart_with_dependencies(chartdir, root=None, recursive=False, helm_docs
                     )
                 else:
                     _, _, dependency_values = load_chart_with_dependencies(
-                        dependency_dir, root + [dependency_name], helm_docs=helm_docs
+                        dependency_dir,
+                        root + [dependency_name],
+                        helm_docs=helm_docs,
+                        skip_helm_update=skip_helm_update,
                     )
                 values = squash_duplicate_values(values + dependency_values)
 
@@ -285,7 +291,13 @@ def traverse(tree, lines, root=None, helm_docs=False):
 
 
 def gen(
-    chartdir, output_format, credits=True, deps=True, recursive=False, helm_docs=False
+    chartdir,
+    output_format,
+    credits=True,
+    deps=True,
+    recursive=False,
+    helm_docs=False,
+    skip_helm_update=False,
 ):
     """Generate documentation for a Helm chart.
 
@@ -299,13 +311,19 @@ def gen(
         deps (bool): Read values from chart dependencies and include them in the config table
         recursive (bool): Recursively read values from chart dependencies further than one level
         helm_docs (bool): Use helm-docs style comments
+        skip_helm_update (bool): Skip updating the chart dependencies
 
     Returns:
         str: Rendered documentation for the Helm chart
 
     """
     chart, _, values = (
-        load_chart_with_dependencies(chartdir, recursive=recursive, helm_docs=helm_docs)
+        load_chart_with_dependencies(
+            chartdir,
+            recursive=recursive,
+            helm_docs=helm_docs,
+            skip_helm_update=skip_helm_update,
+        )
         if deps
         else load_chart(chartdir, helm_docs=helm_docs)
     )

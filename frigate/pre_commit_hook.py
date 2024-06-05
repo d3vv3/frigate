@@ -16,7 +16,15 @@ Note : pre-commit creates a virtualenv with the hook
 """
 
 
-def main(output_file, format, credits=True, deps=True, recursive=False):
+def main(
+    output_file,
+    format,
+    credits=True,
+    deps=True,
+    recursive=False,
+    helm_docs=False,
+    skip_helm_update=False,
+):
     """Write a README file for discovered Helm chart(s).
 
 
@@ -26,6 +34,8 @@ def main(output_file, format, credits=True, deps=True, recursive=False):
         credits (bool): Show Frigate credits in documentation
         deps (bool): Read values from chart dependencies and include them in the config table
         recursive (bool): Go deeper than the first level of the chart dependencies
+        helm_docs (bool): Use the helm-docs format for the documentation.
+        skip_helm_update (bool): Skip helm dependency update before generating the documentation.
 
     Returns:
         int: How many files were updated by the hook
@@ -47,7 +57,13 @@ def main(output_file, format, credits=True, deps=True, recursive=False):
     for chart in charts:
         chart_location = os.path.dirname(chart)
         frigate_output = gen(
-            chart_location, format, credits=credits, deps=deps, recursive=recursive
+            chart_location,
+            format,
+            credits=credits,
+            deps=deps,
+            recursive=recursive,
+            helm_docs=helm_docs,
+            skip_helm_update=skip_helm_update,
         )
         artifact = Path(chart_location, output_file)
         Path(artifact).touch()

@@ -44,6 +44,12 @@ def cli():
     default=False,
     help="Use the helm-docs format for the documentation",
 )
+@click.option(
+    "--skip-helm-update",
+    is_flag=True,
+    default=False,
+    help="Skip helm dependency update before generating the documentation",
+)
 def gen(
     filename,
     output_format,
@@ -51,6 +57,7 @@ def gen(
     no_deps,
     recursive,
     helm_docs,
+    skip_helm_update,
 ):
     click.echo(
         frigate.gen.gen(
@@ -60,6 +67,7 @@ def gen(
             deps=no_deps,
             recursive=recursive,
             helm_docs=helm_docs,
+            skip_helm_update=skip_helm_update,
         )
     )
 
@@ -107,7 +115,15 @@ def gen(
     default=False,
     help="Use the helm-docs format for the documentation",
 )
-def hook(artifact, output_format, no_credits, no_deps, recursive, helm_docs):
+@click.option(
+    "--skip-helm-update",
+    is_flag=True,
+    default=False,
+    help="Skip helm dependency update before generating the documentation",
+)
+def hook(
+    artifact, output_format, no_credits, no_deps, recursive, helm_docs, skip_helm_update
+):
     frigate.pre_commit_hook.main(
         artifact,
         output_format,
@@ -115,4 +131,5 @@ def hook(artifact, output_format, no_credits, no_deps, recursive, helm_docs):
         deps=no_deps,
         recursive=recursive,
         helm_docs=helm_docs,
+        skip_helm_update=skip_helm_update,
     )
