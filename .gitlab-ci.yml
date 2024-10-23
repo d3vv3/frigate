@@ -23,7 +23,21 @@ build_frigate:
     expire_in: 1 week
   image: docker-registry.knut.univention.de/python:3.12-slim
   before_script:
-    - export BUILD_VERSION="$RELEASE_VERSION"
+    - |
+      # Split the version string by hyphen (-) into two parts
+      IFS='-' read -ra parts <<< "$RELEASE_VERSION"
+
+      # Extract the version number and the suffix
+      version_number="${parts[0]}"
+      suffix="${parts[*]:1}"
+
+      # Check if the suffix exists
+      if [ "$CI_COMMIT_BRANCH" != "$CI_DEFAULT_BRANCH" ]; then
+          modified_suffix="dev0+${suffix// /-}"
+          export BUILD_VERSION="$version_number.$modified_suffix.${CI_COMMIT_SHORT_SHA}"
+      else
+          export BUILD_VERSION="$version_number"
+      fi
   script:
     - pip install build
     - python -m build
