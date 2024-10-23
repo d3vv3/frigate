@@ -89,10 +89,26 @@ def load_chart_with_dependencies(
                 "charts",
                 f"{dependency_name}-{dependency['version']}.tgz",
             )
-            with tempfile.TemporaryDirectory() as tmpdirname:
-                shutil.unpack_archive(dependency_path, tmpdirname)
-                dependency_dir = os.path.join(tmpdirname, dependency_name)
+            # Check if path exists
+            # If the chart is a unpacked tarball, the subcharts are folders
+            # without version in the folder names. If the chart is inside a
+            # repository, the subcharts are tarballs.
+            if not os.path.exists(dependency_path):
+                dependency_path = os.path.join(
+                    chartdir,
+                    "charts",
+                    dependency_name,
+                )
+                dependency_dir = dependency_path
 
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                # Check if the path is a tgz
+                if dependency_path.endswith('.tgz'):
+                    shutil.unpack_archive(dependency_path, tmpdirname)
+                    dependency_dir = os.path.join(tmpdirname, dependency_name)
+                else:
+                    dependency_dir = dependency_path
+                
                 if not recursive:
                     _, _, dependency_values = load_chart(
                         dependency_dir, root + [dependency_name], helm_docs=helm_docs
