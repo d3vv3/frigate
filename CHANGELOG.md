@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://git.knut.univention.de/univention/documentation/frigate/compare/v0.1.1...v0.1.2) (2024-10-24)
+
+
+### Bug Fixes
+
+* compatibility with Helm charts pulled from an OCI repository ([07548b2](https://git.knut.univention.de/univention/documentation/frigate/commit/07548b2efffa68a66b600cd08596c095a48de2e9))
+
 ## [0.1.1](https://git.knut.univention.de/univention/documentation/frigate/compare/v0.1.0...v0.1.1) (2024-06-05)
 
 
