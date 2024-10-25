@@ -351,4 +351,6 @@ def gen(
         template_name = f"{output_format}.jinja2"
     template = templates.get_template(template_name)
 
-    return template.render(**chart, values=values, credits=credits)
+    # Sort values alphabetically by parameter name
+    sorted_values = sorted(values, key=lambda x: x[0])
+    return template.render(**chart, values=sorted_values, credits=credits)
